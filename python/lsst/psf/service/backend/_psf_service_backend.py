@@ -68,9 +68,9 @@ class PsfServiceBackend:
     - `deepCoadd_calexp` (calibrated coadd exposures),
     - `deepDiff_differenceExp` (difference image produced in AP pipeline).
 
-    Any dataset type that has a `getPsf()` method should be supported. Refer to
-    the LSST Data Management code on GitHub (https://github.com/lsst) for more
-    information on dataset types.
+    Any dataset type with a `getPsf()` method or a `psf` attribute should be
+    supported. Refer to https://github.com/lsst for more information on dataset
+    types.
 
     Parameters
     ----------
@@ -131,8 +131,6 @@ class PsfServiceBackend:
         ra: float,
         dec: float,
         uuid: UUID,
-        *,
-        component: str | None = None,
     ) -> ResourcePath:
         """Retrieve and write a PSF image from a dataset identified by its
         UUID.
@@ -143,15 +141,13 @@ class PsfServiceBackend:
             RA/Dec of the point where the PSF should be evaluated (in degrees).
         uuid : `uuid.UUID`
             Unique ID of the dataset (e.g., a `calexp`).
-        component : `str`, optional
-            If not None, read this component instead of the composite dataset.
 
         Returns
         -------
         uri : `lsst.resources.ResourcePath`
             Full path to the extracted PSF image file.
         """
-        psf_result = self.extract_uuid(ra, dec, uuid, component=component)
+        psf_result = self.extract_uuid(ra, dec, uuid)
         return self.write_fits(psf_result)
 
     def process_search(
@@ -215,15 +211,13 @@ class PsfServiceBackend:
         point_sky = geom.SpherePoint(geom.Angle(ra, geom.degrees), geom.Angle(dec, geom.degrees))
         point_pixel = wcs.skyToPixel(point_sky)
 
-        # Get the image from the butler and extract the PSF model.
-        image = self.butler.get(ref)
+        # Get the ".psf" component of `ref` early to eliminate the need to read
+        # the full image just to access the PSF.
+        ref = ref.makeComponentRef("psf")
 
-        if not hasattr(image, "getPsf"):
-            raise ValueError(
-                f"The dataset {ref.datasetType.name} with ID {ref.id} does not have a `getPSF()` method"
-            )
+        # Get the PSF model from the butler directly.
+        psf = self.butler.get(ref)
 
-        psf = image.getPsf()
         if psf is None:
             raise ValueError(f"No PSF found in dataset {ref.datasetType.name} with ID {ref.id}.")
 
@@ -250,7 +244,7 @@ class PsfServiceBackend:
         )
 
     def extract_uuid(
-        self, ra: float, dec: float, uuid: UUID, *, component: str | None = None
+        self, ra: float, dec: float, uuid: UUID
     ) -> PsfExtraction:
         """Extract a PSF image from a dataset identified by its UUID.
 
@@ -260,8 +254,6 @@ class PsfServiceBackend:
             RA/Dec (deg) of the PSF evaluation point.
         uuid : `UUID`
             Unique dataset identifier.
-        component : `str`, optional
-            If not None, read this component of the dataset.
 
         Returns
         -------
@@ -276,8 +268,6 @@ class PsfServiceBackend:
         ref = self.butler.get_dataset(uuid)
         if ref is None:
             raise LookupError(f"No dataset found with UUID {uuid}.")
-        if component is not None:
-            ref = ref.makeComponentRef(component)
 
         return self.extract_ref(ra, dec, ref)
 

@@ -32,7 +32,7 @@ class TestPsfServiceBackend(lsst.utils.tests.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
-            # Note: we are taking advantage of the exiting
+            # Note: we are taking advantage of the existing
             # `testdata_image_cutouts` here, as it contains the necessary
             # data to extract a PSF from and test the backend.
             cls.data_dir = lsst.utils.getPackageDir("testdata_image_cutouts")
