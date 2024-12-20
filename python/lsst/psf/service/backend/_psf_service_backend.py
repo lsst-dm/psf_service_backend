@@ -24,15 +24,16 @@ from __future__ import annotations
 __all__ = ("PsfServiceBackend", "PsfExtraction")
 
 import dataclasses
-from uuid import UUID, uuid4
 from collections.abc import Sequence
+from uuid import UUID, uuid4
 
+import lsst.geom as geom
 from lsst.afw.image import ImageD
 from lsst.daf.base import PropertyList
 from lsst.daf.butler import Butler, DataId, DatasetRef
 from lsst.resources import ResourcePath, ResourcePathExpression
+
 from .projection_finders import ProjectionFinder
-import lsst.geom as geom
 
 
 @dataclasses.dataclass
@@ -182,7 +183,9 @@ class PsfServiceBackend:
         psf_result = self.extract_search(ra, dec, dataset_type_name, data_id, collections)
         return self.write_fits(psf_result)
 
-    def extract_ref(self, ra: float, dec: float, ref: DatasetRef) -> PsfExtraction:
+    def extract_ref(
+        self, ra: float, dec: float, ref: DatasetRef, compute_kernel_image: bool = True
+    ) -> PsfExtraction:
         """Extract a PSF image from a fully-resolved `DatasetRef`.
 
         Parameters
@@ -191,6 +194,9 @@ class PsfServiceBackend:
             RA/Dec of the point where the PSF should be evaluated (in degrees).
         ref : `lsst.daf.butler.DatasetRef`
             Fully-resolved dataset reference.
+        compute_kernel_image : `bool`, optional
+            If `True`, computes the PSF image using `computeKernelImage`;
+            otherwise uses `computeImage`. See Notes for more information.
 
         Returns
         -------
@@ -202,6 +208,14 @@ class PsfServiceBackend:
         ValueError
             If `ref.id` is not resolved or if the dataset does not contain a
             PSF.
+
+        Notes
+        -----
+        `computeKernelImage` centers the PSF at the middle of the central
+        pixel, thereby using a coordinate system with the PSF center at (0, 0).
+        `computeImage` intentionally shifts the PSF model to the specified
+        sub-pixel position, aligning it with the same coordinate system as the
+        pixelized image.
         """
         if ref.id is None:
             raise ValueError(f"A resolved DatasetRef with a valid ID is required; got {ref}.")
@@ -221,8 +235,11 @@ class PsfServiceBackend:
         if psf is None:
             raise ValueError(f"No PSF found in dataset {ref.datasetType.name} with ID {ref.id}.")
 
-        # Compute the PSF kernel image at the given point using the PSF model.
-        psf_image = psf.computeKernelImage(point_pixel)
+        # Compute the PSF image at the given point using the PSF model.
+        if compute_kernel_image:
+            psf_image = psf.computeKernelImage(point_pixel)
+        else:
+            psf_image = psf.computeImage(point_pixel)
 
         # Create FITS metadata.
         metadata = PropertyList()
@@ -243,9 +260,7 @@ class PsfServiceBackend:
             origin_ref=ref,
         )
 
-    def extract_uuid(
-        self, ra: float, dec: float, uuid: UUID
-    ) -> PsfExtraction:
+    def extract_uuid(self, ra: float, dec: float, uuid: UUID) -> PsfExtraction:
         """Extract a PSF image from a dataset identified by its UUID.
 
         Parameters
