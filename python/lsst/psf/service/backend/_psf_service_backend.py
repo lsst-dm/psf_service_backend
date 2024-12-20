@@ -107,7 +107,9 @@ class PsfServiceBackend:
     output_root: ResourcePath
     temporary_root: ResourcePath | None
 
-    def process_ref(self, ra: float, dec: float, ref: DatasetRef) -> ResourcePath:
+    def process_ref(
+        self, ra: float, dec: float, ref: DatasetRef, compute_kernel_image: bool = True
+    ) -> ResourcePath:
         """Retrieve and write a PSF image from a fully-resolved `DatasetRef`.
 
         Parameters
@@ -116,15 +118,19 @@ class PsfServiceBackend:
             Right Ascension and Declination of the point (in degrees) where the
             PSF should be evaluated.
         ref : `lsst.daf.butler.DatasetRef`
-            Fully-resolved reference to a dataset (e.g., `calexp`,
-            `deepCoadd_calexp`, `goodSeeingDiff_differenceExp`).
+            Fully-resolved reference to a dataset containing the PSF (e.g.,
+            `calexp`, `deepCoadd_calexp`, `goodSeeingDiff_differenceExp`).
+            This does not directly point to the PSF component of the dataset.
+        compute_kernel_image : `bool`, optional
+            If `True`, computes the PSF image using `computeKernelImage`;
+            otherwise uses `computeImage`.
 
         Returns
         -------
         uri : `lsst.resources.ResourcePath`
             Full path to the extracted PSF image file.
         """
-        psf_result = self.extract_ref(ra, dec, ref)
+        psf_result = self.extract_ref(ra, dec, ref, compute_kernel_image)
         return self.write_fits(psf_result)
 
     def process_uuid(
@@ -132,6 +138,7 @@ class PsfServiceBackend:
         ra: float,
         dec: float,
         uuid: UUID,
+        compute_kernel_image: bool = True,
     ) -> ResourcePath:
         """Retrieve and write a PSF image from a dataset identified by its
         UUID.
@@ -142,13 +149,16 @@ class PsfServiceBackend:
             RA/Dec of the point where the PSF should be evaluated (in degrees).
         uuid : `uuid.UUID`
             Unique ID of the dataset (e.g., a `calexp`).
+        compute_kernel_image : `bool`, optional
+            If `True`, computes the PSF image using `computeKernelImage`;
+            otherwise uses `computeImage`.
 
         Returns
         -------
         uri : `lsst.resources.ResourcePath`
             Full path to the extracted PSF image file.
         """
-        psf_result = self.extract_uuid(ra, dec, uuid)
+        psf_result = self.extract_uuid(ra, dec, uuid, compute_kernel_image)
         return self.write_fits(psf_result)
 
     def process_search(
@@ -158,6 +168,7 @@ class PsfServiceBackend:
         dataset_type_name: str,
         data_id: DataId,
         collections: Sequence[str],
+        compute_kernel_image: bool = True,
     ) -> ResourcePath:
         """Retrieve and write a PSF image from a dataset identified by
         (dataset type, data ID, collection).
@@ -174,13 +185,18 @@ class PsfServiceBackend:
             "detector": 42}).
         collections : `collections.abc.Sequence[str]`
             Collections to search for the dataset.
+        compute_kernel_image : `bool`, optional
+            If `True`, computes the PSF image using `computeKernelImage`;
+            otherwise uses `computeImage`.
 
         Returns
         -------
         uri : `lsst.resources.ResourcePath`
             Full path to the extracted PSF image file.
         """
-        psf_result = self.extract_search(ra, dec, dataset_type_name, data_id, collections)
+        psf_result = self.extract_search(
+            ra, dec, dataset_type_name, data_id, collections, compute_kernel_image
+        )
         return self.write_fits(psf_result)
 
     def extract_ref(
@@ -191,9 +207,12 @@ class PsfServiceBackend:
         Parameters
         ----------
         ra, dec : `float`
-            RA/Dec of the point where the PSF should be evaluated (in degrees).
+            Right Ascension and Declination of the point (in degrees) where the
+            PSF should be evaluated.
         ref : `lsst.daf.butler.DatasetRef`
-            Fully-resolved dataset reference.
+            Fully-resolved reference to a dataset containing the PSF (e.g.,
+            `calexp`, `deepCoadd_calexp`, `goodSeeingDiff_differenceExp`).
+            This does not directly point to the PSF component of the dataset.
         compute_kernel_image : `bool`, optional
             If `True`, computes the PSF image using `computeKernelImage`;
             otherwise uses `computeImage`. See Notes for more information.
@@ -260,7 +279,9 @@ class PsfServiceBackend:
             origin_ref=ref,
         )
 
-    def extract_uuid(self, ra: float, dec: float, uuid: UUID) -> PsfExtraction:
+    def extract_uuid(
+        self, ra: float, dec: float, uuid: UUID, compute_kernel_image: bool = True
+    ) -> PsfExtraction:
         """Extract a PSF image from a dataset identified by its UUID.
 
         Parameters
@@ -269,6 +290,9 @@ class PsfServiceBackend:
             RA/Dec (deg) of the PSF evaluation point.
         uuid : `UUID`
             Unique dataset identifier.
+        compute_kernel_image : `bool`, optional
+            If `True`, computes the PSF image using `computeKernelImage`;
+            otherwise uses `computeImage`.
 
         Returns
         -------
@@ -284,10 +308,16 @@ class PsfServiceBackend:
         if ref is None:
             raise LookupError(f"No dataset found with UUID {uuid}.")
 
-        return self.extract_ref(ra, dec, ref)
+        return self.extract_ref(ra, dec, ref, compute_kernel_image)
 
     def extract_search(
-        self, ra: float, dec: float, dataset_type_name: str, data_id: DataId, collections: Sequence[str]
+        self,
+        ra: float,
+        dec: float,
+        dataset_type_name: str,
+        data_id: DataId,
+        collections: Sequence[str],
+        compute_kernel_image: bool = True,
     ) -> PsfExtraction:
         """Extract a PSF image from a dataset identified by (dataset type,
         data ID, collection).
@@ -303,6 +333,9 @@ class PsfServiceBackend:
             Data ID mapping used to locate the dataset.
         collections : `collections.abc.Sequence[str]`
             Collections to search for the dataset.
+        compute_kernel_image : `bool`, optional
+            If `True`, computes the PSF image using `computeKernelImage`;
+            otherwise uses `computeImage`.
 
         Returns
         -------
@@ -319,7 +352,7 @@ class PsfServiceBackend:
             raise LookupError(
                 f"No {dataset_type_name} dataset found with data ID {data_id} in {collections}."
             )
-        return self.extract_ref(ra, dec, ref)
+        return self.extract_ref(ra, dec, ref, compute_kernel_image)
 
     def write_fits(self, psf_result: PsfExtraction) -> ResourcePath:
         """Write a `PsfExtraction` to a FITS file in `output_root`.
