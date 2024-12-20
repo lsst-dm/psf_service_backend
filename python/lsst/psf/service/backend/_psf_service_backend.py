@@ -74,15 +74,15 @@ class PsfServiceBackend:
 
     Parameters
     ----------
-    butler : `Butler`
+    butler : `lsst.daf.butler.Butler`
         Butler that retrieves images of various types from the LSST Science
         Pipelines data repository.
     projection_finder : `ProjectionFinder`
         Object used to obtain WCS for butler datasets, allowing RA/Dec to pixel
         conversions.
-    output_root : `ResourcePathExpression`
+    output_root : `lsst.resources.ResourcePathExpression`
         Root of output file URIs. The final PSF FITS file will be placed here.
-    temporary_root : `ResourcePathExpression`, optional
+    temporary_root : `lsst.resources.ResourcePathExpression`, optional
         Local filesystem root for writing temporary files before transferring
         to `output_root`.
     """
@@ -114,13 +114,13 @@ class PsfServiceBackend:
         ra, dec : `float`
             Right Ascension and Declination of the point (in degrees) where the
             PSF should be evaluated.
-        ref : `DatasetRef`
+        ref : `lsst.daf.butler.DatasetRef`
             Fully-resolved reference to a dataset (e.g., `calexp`,
             `deepCoadd_calexp`, `goodSeeingDiff_differenceExp`).
 
         Returns
         -------
-        uri : `ResourcePath`
+        uri : `lsst.resources.ResourcePath`
             Full path to the extracted PSF image file.
         """
         psf_result = self.extract_ref(ra, dec, ref)
@@ -141,14 +141,14 @@ class PsfServiceBackend:
         ----------
         ra, dec : `float`
             RA/Dec of the point where the PSF should be evaluated (in degrees).
-        uuid : `UUID`
+        uuid : `uuid.UUID`
             Unique ID of the dataset (e.g., a `calexp`).
         component : `str`, optional
             If not None, read this component instead of the composite dataset.
 
         Returns
         -------
-        uri : `ResourcePath`
+        uri : `lsst.resources.ResourcePath`
             Full path to the extracted PSF image file.
         """
         psf_result = self.extract_uuid(ra, dec, uuid, component=component)
@@ -172,15 +172,15 @@ class PsfServiceBackend:
         dataset_type_name : `str`
             Name of the butler dataset (e.g. "calexp", "deepCoadd_calexp",
             "goodSeeingDiff_differenceExp").
-        data_id : `dict` or `DataCoordinate`
+        data_id : `dict` or `lsst.daf.butler.DataCoordinate`
             Data ID used to find the dataset (e.g. {"visit": 12345,
             "detector": 42}).
-        collections : `Sequence[str]`
+        collections : `collections.abc.Sequence[str]`
             Collections to search for the dataset.
 
         Returns
         -------
-        uri : `ResourcePath`
+        uri : `lsst.resources.ResourcePath`
             Full path to the extracted PSF image file.
         """
         psf_result = self.extract_search(ra, dec, dataset_type_name, data_id, collections)
@@ -193,7 +193,7 @@ class PsfServiceBackend:
         ----------
         ra, dec : `float`
             RA/Dec of the point where the PSF should be evaluated (in degrees).
-        ref : `DatasetRef`
+        ref : `lsst.daf.butler.DatasetRef`
             Fully-resolved dataset reference.
 
         Returns
@@ -294,9 +294,9 @@ class PsfServiceBackend:
         dataset_type_name : `str`
             Dataset type name of the image (e.g. "calexp", "deepCoadd_calexp",
             "goodSeeingDiff_differenceExp").
-        data_id : `DataId`
+        data_id : `lsst.daf.butler.DataId`
             Data ID mapping used to locate the dataset.
-        collections : `Sequence[str]`
+        collections : `collections.abc.Sequence[str]`
             Collections to search for the dataset.
 
         Returns
@@ -326,7 +326,7 @@ class PsfServiceBackend:
 
         Returns
         -------
-        uri : `ResourcePath`
+        uri : `lsst.resources.ResourcePath`
             Full path to the extracted PSF file.
         """
         output_uuid = uuid4()
