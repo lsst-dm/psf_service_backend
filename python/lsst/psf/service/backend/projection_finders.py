@@ -208,6 +208,8 @@ class UseSkyMap(ProjectionFinder):
                 skymap = butler.get(
                     self._dataset_type_name, skymap=ref.dataId["skymap"], collections=self._collections
                 )
+                # Populate the cache with the skymap to avoid reloading it.
+                self._cache[cast(str, ref.dataId["skymap"])] = skymap
             tractInfo = skymap[ref.dataId["tract"]]
             if "patch" in ref.dataId.dimensions:
                 patchInfo = tractInfo[ref.dataId["patch"]]
